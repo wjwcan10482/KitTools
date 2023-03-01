@@ -1,0 +1,6 @@
+#controller
+controller02 ansible_connection=ssh ansible_host=10.168.1.162
+[HA-Primary]
+controller02
+[all:vars]
+ansible_ssh_pass='huayun'

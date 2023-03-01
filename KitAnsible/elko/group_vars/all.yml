@@ -1,0 +1,3 @@
+rpmserver: 172.16.47.217 
+esserver: "{{ rpmserver }}"
+kibanaserver: "{{ rpmserver }}"
