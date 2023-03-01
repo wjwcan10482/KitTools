@@ -1,0 +1,26 @@
+- hosts: localhost
+  tasks:
+    - name: create .pub 
+      shell: if [ ! -f /tmp/ceph_key_id_rsa ];then ssh-keygen -t rsa -b 2048 -f /tmp/ceph_key_id_rsa -q -N "" ;fi
+    - name: create root .pub
+      shell: if [ -f /root/.ssh/id_rsa.pub ] ;then echo 'file exists'; else ssh-keygen -t rsa -b 2048 -f /root/.ssh/id_rsa -q -N "" ;fi
+
+- hosts: localhost
+  any_errors_fatal: true
+  tasks:
+    - name: get ip
+      shell: for i in `cat inventory/hosts `;do echo $i|grep ansible_host|awk -F= '{print $2}';done |sort -n|uniq |tr "\n" " "
+      register: IP_List
+    - name: scp packages
+      shell: for i in {{ IP_List.stdout }}; do sshpass -p {{ ansible_ssh_pass }} scp -o stricthostkeychecking=no deps_rpm/libselinux-python-2.2.2-6.el7.x86_64.rpm $i:/root/;done
+
+- hosts: cobbler_server
+  tasks:
+    - name: install libselinux
+      shell: if [ `rpm -qa | grep libselinux-python |wc -l` -eq 0 ];then rpm -ivh /root/libselinux-python-2.2.2-6.el7.x86_64.rpm;fi
+      ignore_errors: yes
+
+- hosts: cobbler_server
+  roles:
+    - common
+    - cobblerdeploy

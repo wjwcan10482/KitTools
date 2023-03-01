@@ -1,0 +1,99 @@
+---
+# tasks file for cobblerdeploy
+- name: install cobbler deps rpm
+  yum: name={{ item }}
+  with_items:
+    - wget
+    - vim
+    - epel-release
+    - httpd 
+- name: install cobbler deps rpm
+  yum: name={{ item }}
+  with_items:
+    - rsync 
+    - xinetd
+    - debmirror
+    - dhcp
+    - pykickstart
+    - fence-agents 
+    - cobbler
+
+- name: config /etc/cobbler/settings 
+  lineinfile: dest=/etc/cobbler/settings regexp={{ item.regexp }} line={{ item.line }}
+  with_items:
+    - { regexp: '^server:', line: 'server: "{{ dhcp_ip }}"' }
+    - { regexp: '^next_server:', line: 'next_server: "{{ dhcp_ip }}"' }
+    - { regexp: '^default_password_crypted:', line: 'default_password_crypted: $1$crfW.rth$9rZrTThMOT9Dgt13cJIIe0' }
+    - { regexp: '^manage_dhcp:', line: 'manage_dhcp: 1' }
+
+- name: config /etc/cobbler/dhcp.template
+  template: src=dhcp.template.j2 dest=/etc/cobbler/dhcp.template
+
+- name: start  cobbler server and it's deps server
+  service: name={{ item }}  state=restarted enabled=yes
+  with_items:
+    - xinetd
+    - rsyncd
+    - httpd
+    - cobblerd
+
+- name: sync cobbler
+  shell: cobbler sync;cobbler get-loaders
+
+- name: delete error subject in /etc/debmirror.conf
+  lineinfile: dest=/etc/debmirror.conf regexp={{ item.regexp }} line={{ item.line }}
+  with_items:
+    - { regexp: '^@dists', line: '#@dists' }
+    - { regexp: '^@arches', line: '#@arches' }
+
+- name: start cobbler server
+  service: name=cobblerd  state=restarted
+
+- name: check CentOS-7-x86_64-Minimal-1511.iso exist
+  shell: ls -a  /root/  | grep CentOS-7-x86_64-Minimal-1511.iso | wc -l 
+  register: iso_num
+
+- debug: var=iso_num
+- name: wget iso url
+  shell: "wget {{ iso_url }} -P {{ iso_dir }}"
+  when:  iso_num.stdout == '0'
+- name: mount iso
+  mount: 
+      name: /mnt/
+      src: /root/CentOS-7-x86_64-Minimal-1511.iso
+      fstype: iso9660
+      opts: ro,noauto
+      state: mounted 
+      boot: no
+
+- name: check iso list
+  shell: cobbler distro list | grep CentOS-7.2| wc -l
+  register: cobbler_distro
+
+- name: cobbler import iso
+  shell: cobbler import iso --name=CentOS-7.2 --arch=x86_64 --path=/mnt
+  when: cobbler_distro.stdout == '0'
+- name:  cobbler system add
+  shell: cobbler system add --name=wangjin --profile=CentOS-7.2-x86_64
+  when: cobbler_distro.stdout == '0'
+- name: start  cobbler server and it's deps server
+  service: name={{ item }}  state=restarted enabled=yes
+  with_items:
+    - cobblerd
+    
+- name: insert dhcp mac & ip into tmp
+  blockinfile:
+   dest: /etc/cobbler/dhcp.template 
+   block: |
+     host 172.16.81.136 {
+       hardware ethernet 00:50:56:a3:f5:7d;
+       fixed-address 172.16.81.136;
+     }
+
+- name: start  cobbler server and it's deps server
+  service: name={{ item }}  state=restarted enabled=yes
+  with_items:
+    - xinetd
+
+- name: sync cobbler
+  shell: cobbler sync  
