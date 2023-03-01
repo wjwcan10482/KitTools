@@ -1,0 +1,38 @@
+---
+# tasks file for common
+- name: setup hostname
+  shell: hostnamectl set-hostname {{ inventory_hostname }}
+
+- name: change sshd
+  shell: sed -i -e 's/.*UseDNS.*/UseDNS no/g' -e 's/.*GSSAPIAuthentication.*/GSSAPIAuthentication no/g' /etc/ssh/sshd_config
+  
+- name: restart sshd server
+  service: name=sshd state=restarted
+
+- name: set dhcp nic 
+  template: src=templates/ifcfg.j2 dest=/etc/sysconfig/network-scripts/ifcfg-{{ dhcp_nic }}
+
+- name: restart dhcp nic
+  shell: ifdown {{dhcp_nic}};ifup {{dhcp_nic}}
+- name: check sestatus status
+  shell: sestatus | grep "SELinux status" | awk '{print $3}'
+  register: sestatus
+
+- name: setup selinux disabled
+  selinux: state=disabled
+  when: sestatus.stdout == "enabled"
+
+- name: Update selinux config to Disabled mode need reboot
+  shell: if [ `sestatus | wc -l` == 9 ];then sleep 3 && shutdown -r now "Ansible update triggered";fi
+  async: 1
+  poll: 0
+  ignore_errors: true
+  when: sestatus.stdout == "enabled"
+
+- name: Waiting for server to come back
+  local_action: wait_for host={{ ansible_host }} port=22 state=started delay=5 timeout=600
+  become: no
+  when: sestatus.stdout == "enabled"
+
+
+

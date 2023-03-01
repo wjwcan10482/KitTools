@@ -1,0 +1,8 @@
+PxeServer ansible_host=10.51.20.120 dhcp_nic=enp0s8 dhcp_ip=192.168.82.250 dhcp_netmask=255.255.255.0  dhcp_net=192.168.82.0 
+[cobbler_server]
+PxeServer
+[all:vars]
+ansible_connection=ssh
+ansible_ssh_pass='CHANGEME'
+iso_url=http://CHANGEME/soft/CentOS-7-x86_64-Minimal-1511.iso
+iso_dir=/root/
