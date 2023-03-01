@@ -1,0 +1,5 @@
+---
+- name : install elk
+  hosts: localhost
+  roles:
+      - elk

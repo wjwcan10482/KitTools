@@ -1,0 +1,87 @@
+#安装elasticsearch
+
+- name: cp rpms to /tmp
+  copy: src={{ item }} dest=/tmp/ mode=755
+  with_items:
+    - elasticsearch-5.5.2.rpm
+    - kibana-5.5.2-x86_64.rpm
+    - logstash-5.5.2.rpm
+    - filebeat-5.5.2-x86_64.rpm
+
+- name: install es rpm from a local file
+  yum:
+    name: /tmp/elasticsearch-5.5.2.rpm
+    state: present
+
+- name: config es /etc/elasticsearch/elasticsearch.yml
+  template:
+    backup: yes
+    src: elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: start es server
+  service: name={{ item }} enabled=yes state=restarted
+  with_items:
+    - elasticsearch
+
+#安装logstash
+- name: stop logstash server
+  service: name={{ item }} enabled=yes state=stopped
+  with_items:
+    - logstash
+
+- name: install logstash rpm from a local file
+#  yum:
+#    name: /tmp/logstash-5.5.2.rpm
+#    state: present
+  shell: yum reinstall /tmp/logstash-5.5.2.rpm -y
+###changeme 
+- name: config logstash to /etc/logstash/conf.d/
+  template:
+    backup: yes
+    src:  sample.conf.j2
+    dest: /etc/logstash/conf.d/sample.conf
+    owner: root
+    group: root
+    mode: 0644
+- name: change logstash default user 'logstash' to 'root'
+  copy: src={{ item }}  dest=/etc/systemd/system/ mode=755 force=yes
+  with_items:
+    - logstash.service
+- name: reload logstash server
+  systemd:
+    state: restarted
+    daemon_reload: yes     
+    name: logstash
+
+#安装kibana
+- name: install kibana rpm from a local file
+  yum:
+    name: /tmp/kibana-5.5.2-x86_64.rpm
+    state: present
+
+- name: config kibana to /etc/kibana/kibana.yml
+  template:
+    backup: yes
+    src:  kibana.yml.j2
+    dest: /etc/kibana/kibana.yml
+    owner: root
+    group: root
+    mode: 0644
+- name: start kibana server
+  service: name={{ item }} enabled=yes state=restarted
+  with_items:
+    - kibana
+
+
+
+
+
+
+
+
+
+

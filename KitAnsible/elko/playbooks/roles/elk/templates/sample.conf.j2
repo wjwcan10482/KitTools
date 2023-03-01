@@ -1,0 +1,11 @@
+input {
+    file{
+        path =>["/var/log/messages","/var/log/httpd/error_log","/var/log/httpd/access_log"]
+        type =>"log"
+        start_position =>"beginning"
+    }
+}
+output {
+    elasticsearch { hosts => ["{{ esserver }}:9200"] }
+    stdout { codec => rubydebug }
+}
